@@ -7,11 +7,15 @@
  $(document).ready(() => {
      
 
-    var parseTime = d3.timeParse("%d/%m/%Y");
+var parseTime = d3.timeParse("%d/%m/%Y");
 var formatTime = d3.timeFormat("%d/%m/%Y");
 var bisectDate = d3.bisector(function (d) {
     return d.date;
 }).left;
+
+var selectedCoin = "bitcoin";
+var selectedVariable = "price_usd";
+let formattedData = {};
 
 var margin = {
         left: 80,
@@ -46,18 +50,19 @@ $("#date-slider").slider({
     }
 });
 
-let selectedCoin = $("#coin-select").val();
-let selectedVariable = $("#var-select").val();
 
 //change events for selects
 $(document).on("change","#coin-select", function(){
-    const value = $(this).val();
+    const coinValue = $(this).val();
 
+    selectedCoin = coinValue;
     
 });
 
 $(document).on("change","#var-select", function(){
-    const value = $(this).val();
+    const varValue = $(this).val();
+
+    selectedVariable = varValue;
 
 });
 
@@ -67,21 +72,25 @@ var x = d3.scaleTime().range([0, width]);
 var y = d3.scaleLinear().range([height, 0]);
 
 // Axis generators
-var xAxisCall = d3.axisBottom()
+var xAxisCall = d3.axisBottom().ticks(8).tickFormat(function(d){       
+    return moment(d).format('YYYY');
+});
+
 var yAxisCall = d3.axisLeft()
-    .ticks(6)
+    .ticks(10)
     .tickFormat(function (d) {
 
-        const dailyVolume = d["24h_vol"];
-
+        const dailyVolume = d;
+      console.log(dailyVolume);
+      
         if(dailyVolume < 1000000){
-           return dailyVolume;
+           return "$" + dailyVolume;
         }else if (dailyVolume < 1000000000){
             //MILLIONS
-           return parseInt(dailyVolume) / 1000000 + "M";
+           return "$" + parseInt(dailyVolume) / 1000000 + "M";
         }else {
             //BILLIONS
-           return parseInt(dailyVolume) / 1000000000 + "B";
+           return "$" + parseInt(dailyVolume) / 1000000000 + "B";
         }
 
     });
@@ -116,15 +125,14 @@ yAxis.append("text")
 // Line path generator
 var line = d3.line()
     .x(function (d) {
-        return x(d.year);
+        return x(d.date);
     })
     .y(function (d) {
-        return y(d.value);
+        return y(d[selectedVariable]);
     });
 
 d3.json("data/coins.json").then(function (coins) {
 
-    let formattedData = {};
 
     for (const coin in coins) {
 
@@ -143,35 +151,10 @@ d3.json("data/coins.json").then(function (coins) {
         });
 
 
-        // Set scale domains
-        x.domain(d3.extent(coins[coin], function (d) {            
-            return parseTime(d.date).getTime();
-        }));
-
-        y.domain([d3.min(coins[coin], function (d) {
-                return d["24h_vol"];
-            }),
-            d3.max(coins[coin], function (d) {
-                return d["24h_vol"];
-            })
-        ]);
-
-        // Generate axes once scales have been set
-        xAxis.call(xAxisCall.scale(x))
-        yAxis.call(yAxisCall.scale(y))
-
-        // Add line to chart
-       /*  g.append("path")
-            .attr("class", "line")
-            .attr("fill", "none")
-            .attr("stroke", "grey")
-            .attr("stroke-with", "3px")
-            .attr("d", line(data)); */
-
 
     }
 
-
+    update();
     /******************************** Tooltip Code ********************************/
 
     /*  var focus = g.append("g")
@@ -211,7 +194,8 @@ d3.json("data/coins.json").then(function (coins) {
                 d0 = data[i - 1],
                 d1 = data[i],
                 d = x0 - d0.year > d1.year - x0 ? d1 : d0;
-            focus.attr("transform", "translate(" + x(d.year) + "," + y(d.value) + ")");
+            focus.attr("txAxisCall
+xAxisCallransform", "translate(" + x(d.year) + "," + y(d.value) + ")");
             focus.select("text").text(d.value);
             focus.select(".x-hover-line").attr("y2", height - y(d.value));
             focus.select(".y-hover-line").attr("x2", -x(d.year));
@@ -223,7 +207,38 @@ d3.json("data/coins.json").then(function (coins) {
 });
 
 
+function update() {
+
+    //update lines
+    
+     // Set scale domains
+    x.domain(d3.extent(formattedData[selectedCoin], function (d) {            
+        return parseTime(d.date).getTime();
+    }));
+
+    y.domain(d3.extent(formattedData[selectedCoin], function (d){
+        return d[selectedVariable];
+    }));
+
+    // Generate axes once scales have been set
+    xAxis.call(xAxisCall.scale(x));
+    yAxis.call(yAxisCall.scale(y));
+
+      // Add line to chart
+    g.append("path")
+            .attr("class", "line")
+            .attr("fill", "none")
+            .attr("stroke", "grey")
+            .attr("stroke-with", "3px")
+            .attr("d", line(formattedData));
+    
+
+    //update y axis label
+
+
+  return;
+}
+
 
 
  });
-
