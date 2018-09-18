@@ -56,14 +56,12 @@ $(document).on("change","#coin-select", function(){
     const coinValue = $(this).val();
 
     selectedCoin = coinValue;
-    
 });
 
 $(document).on("change","#var-select", function(){
     const varValue = $(this).val();
 
     selectedVariable = varValue;
-
 });
 
 
@@ -123,11 +121,12 @@ yAxis.append("text")
     .text("Price(USD)");
 
 // Line path generator
-var line = d3.line()
+var lineGenerator = d3.line()
     .x(function (d) {
         return x(d.date);
     })
     .y(function (d) {
+       // console.log("Y LINE GEN", d);
         return y(d[selectedVariable]);
     });
 
@@ -211,9 +210,9 @@ function update() {
 
     //update lines
     
-     // Set scale domains
+    // Set scale domains
     x.domain(d3.extent(formattedData[selectedCoin], function (d) {            
-        return parseTime(d.date).getTime();
+        return d.date;
     }));
 
     y.domain(d3.extent(formattedData[selectedCoin], function (d){
@@ -224,13 +223,17 @@ function update() {
     xAxis.call(xAxisCall.scale(x));
     yAxis.call(yAxisCall.scale(y));
 
-      // Add line to chart
+   const generatedLine = lineGenerator(formattedData[selectedCoin]);
+
+   console.log("GENERATED LINE",generatedLine);
+
+    // Add line to chart
     g.append("path")
             .attr("class", "line")
             .attr("fill", "none")
             .attr("stroke", "grey")
             .attr("stroke-with", "3px")
-            .attr("d", line(formattedData));
+            .attr("d", generatedLine);
     
 
     //update y axis label
@@ -241,4 +244,4 @@ function update() {
 
 
 
- });
+});
