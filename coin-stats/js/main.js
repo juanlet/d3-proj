@@ -4,9 +4,6 @@
  *    CoinStats
  */
 
- $(document).ready(() => {
-     
-
 var parseTime = d3.timeParse("%d/%m/%Y");
 var formatTime = d3.timeFormat("%d/%m/%Y");
 var bisectDate = d3.bisector(function (d) {
@@ -16,6 +13,11 @@ var bisectDate = d3.bisector(function (d) {
 var selectedCoin = "bitcoin";
 var selectedVariable = "price_usd";
 let formattedData = {};
+
+ $(document).ready(function(){
+     
+
+
 
 var margin = {
         left: 80,
@@ -123,7 +125,7 @@ yAxis.append("text")
 // Line path generator
 var lineGenerator = d3.line()
     .x(function (d) {
-        return x(d.date);
+        return x(parseTime(d.date));
     })
     .y(function (d) {
        // console.log("Y LINE GEN", d);
@@ -141,9 +143,9 @@ d3.json("data/coins.json").then(function (coins) {
 
         formattedData[coin] = coins[coin].filter((dayData) => {
 
-            dayData["24h_vol"] = +dayData["24h_vol"];
-            dayData.market_cap = +dayData.market_cap;
-            dayData.price_usd = +dayData.price_usd;
+            dayData["24h_vol"] = dayData["24h_vol"]? +dayData["24h_vol"]: dayData["24h_vol"];
+            dayData.market_cap = dayData.market_cap? +dayData.market_cap: dayData.market_cap;
+            dayData.price_usd = dayData.price_usd? +dayData.price_usd: dayData.price_usd;
             //dayData.date = parseTime(dayData.date).getTime();
 
             return !(dayData["price_usd"] == null);
@@ -212,12 +214,12 @@ function update() {
     
     // Set scale domains
     x.domain(d3.extent(formattedData[selectedCoin], function (d) {            
-        return d.date;
+        return parseTime(d.date);
     }));
 
-    y.domain(d3.extent(formattedData[selectedCoin], function (d){
+    y.domain([0,d3.max(formattedData[selectedCoin], function (d){
         return d[selectedVariable];
-    }));
+    })]);
 
     // Generate axes once scales have been set
     xAxis.call(xAxisCall.scale(x));
