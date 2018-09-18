@@ -13,11 +13,10 @@ var bisectDate = d3.bisector(function (d) {
 var selectedCoin = "bitcoin";
 var selectedVariable = "price_usd";
 let formattedData = {};
+var dateRangeSelected = [parseTime("12/5/2013").getTime(),parseTime("31/10/2017").getTime()]
 
  $(document).ready(function(){
      
-
-
 
 var margin = {
         left: 80,
@@ -33,22 +32,42 @@ var svg = d3.select("#chart-area").append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom);
 
+    var mask = svg.append("defs")
+  .append("clipPath")
+  .attr("id", "mask")
+  .style("pointer-events", "none")
+    .append("rect")
+    .attr({
+      x: 0,
+      y: 0,
+      width: width,
+      height: height + margin.bottom,
+    })
+
 var g = svg.append("g")
     .attr("transform", "translate(" + margin.left +
         ", " + margin.top + ")");
 
 $("#date-slider").slider({
     range: true,
-    max: parseTime("31/10/2017").getTime(),
-    min: parseTime("12/5/2013").getTime(),
+    max: dateRangeSelected[1],
+    min: dateRangeSelected[0],
     step: 86400000, // One day
-    values: [parseTime("12/5/2013").getTime(), parseTime("31/10/2017").getTime()],
+    values: [dateRangeSelected[0], dateRangeSelected[1]],
     slide: function (event, ui) {
-        $("#dateLabel1").text(formatTime(new Date(ui.values[0])));
-        $("#dateLabel2").text(formatTime(new Date(ui.values[1])));
+
+    const initialDate = new Date(ui.values[0]);
+    const finalDate = new Date(ui.values[1]);
+        //update globals for update method to use them
+        dateRangeSelected[0] = initialDate.getTime();
+        dateRangeSelected[1] = finalDate.getTime();
+        //update labels
+        $("#dateLabel1").text(formatTime(initialDate));
+        $("#dateLabel2").text(formatTime(finalDate));
         //update();
         console.log("START: " + formatTime(new Date(ui.values[0])) + " END: " + formatTime(new Date(ui.values[1])));
-
+        
+        update();
     }
 });
 
@@ -58,12 +77,14 @@ $(document).on("change","#coin-select", function(){
     const coinValue = $(this).val();
 
     selectedCoin = coinValue;
+    update();
 });
 
 $(document).on("change","#var-select", function(){
     const varValue = $(this).val();
 
     selectedVariable = varValue;
+    update();
 });
 
 
@@ -72,7 +93,8 @@ var x = d3.scaleTime().range([0, width]);
 var y = d3.scaleLinear().range([height, 0]);
 
 // Axis generators
-var xAxisCall = d3.axisBottom().ticks(8).tickFormat(function(d){       
+var xAxisCall = d3.axisBottom().ticks(4).tickFormat(function(d){ 
+          
     return moment(d).format('YYYY');
 });
 
@@ -81,7 +103,6 @@ var yAxisCall = d3.axisLeft()
     .tickFormat(function (d) {
 
         const dailyVolume = d;
-      console.log(dailyVolume);
       
         if(dailyVolume < 1000000){
            return "$" + dailyVolume;
@@ -158,7 +179,7 @@ d3.json("data/coins.json").then(function (coins) {
     update();
     /******************************** Tooltip Code ********************************/
 
-    /*  var focus = g.append("g")
+ /*      var focus = g.append("g")
         .attr("class", "focus")
         .style("display", "none");
 
@@ -185,22 +206,21 @@ d3.json("data/coins.json").then(function (coins) {
         .attr("height", height)
         .on("mouseover", function() { focus.style("display", null); })
         .on("mouseout", function() { focus.style("display", "none"); })
-     //   .on("mousemove", mousemove);
-*/
+        .on("mousemove", mousemove);
 
-    /* 
+
+    
         function mousemove() {
             var x0 = x.invert(d3.mouse(this)[0]),
                 i = bisectDate(data, x0, 1),
                 d0 = data[i - 1],
                 d1 = data[i],
                 d = x0 - d0.year > d1.year - x0 ? d1 : d0;
-            focus.attr("txAxisCall
-xAxisCallransform", "translate(" + x(d.year) + "," + y(d.value) + ")");
+            focus.attr("txAxisCallxAxisCallransform", "translate(" + x(d.year) + "," + y(d.value) + ")");
             focus.select("text").text(d.value);
             focus.select(".x-hover-line").attr("y2", height - y(d.value));
             focus.select(".y-hover-line").attr("x2", -x(d.year));
-        } */
+        }  */
 
 
     /******************************** Tooltip Code ********************************/
@@ -210,24 +230,34 @@ xAxisCallransform", "translate(" + x(d.year) + "," + y(d.value) + ")");
 
 function update() {
 
-    //update lines
+    var axisTransition = d3.transition()
+        .duration(1000);
+
+    var t = d3.transition()
+    .duration(100);
+
+    //delete previous elements
+
+    d3.selectAll("path.line").remove();
     
     // Set scale domains
-    x.domain(d3.extent(formattedData[selectedCoin], function (d) {            
+  /*   x.domain(d3.extent(formattedData[selectedCoin], function (d) {            
         return parseTime(d.date);
-    }));
+    })); */
+    
+    x.domain(dateRangeSelected);
 
     y.domain([0,d3.max(formattedData[selectedCoin], function (d){
         return d[selectedVariable];
     })]);
 
     // Generate axes once scales have been set
-    xAxis.call(xAxisCall.scale(x));
-    yAxis.call(yAxisCall.scale(y));
+    xAxis.transition(axisTransition).call(xAxisCall.scale(x));
+    yAxis.transition(axisTransition).call(yAxisCall.scale(y));
 
    const generatedLine = lineGenerator(formattedData[selectedCoin]);
 
-   console.log("GENERATED LINE",generatedLine);
+   //console.log("GENERATED LINE",generatedLine);
 
     // Add line to chart
     g.append("path")
@@ -235,11 +265,10 @@ function update() {
             .attr("fill", "none")
             .attr("stroke", "grey")
             .attr("stroke-with", "3px")
-            .attr("d", generatedLine);
+            .attr("d", generatedLine)
+            .transition(t)
+            ;
     
-
-    //update y axis label
-
 
   return;
 }
